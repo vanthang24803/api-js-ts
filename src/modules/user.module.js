@@ -1,4 +1,5 @@
 const { z } = require("zod");
+const { ObjectId } = require("mongodb");
 
 module.exports = {
   validateBeforeSave: (params) => {
@@ -80,9 +81,60 @@ module.exports = {
       return exception(401);
     }
 
-    const token = jwt.generateToken(user);
+    const token = {
+      access_token: jwt.generateToken(user),
+      refresh_token: jwt.generateToken(user, true),
+    };
 
     log.info("User logged in successfully!");
     return token;
+  },
+
+  /**
+   * @param {string} id
+   * @returns
+   */
+
+  findUserById: async function (params) {
+    const user = await db
+      .collection("users")
+      .findOne({ _id: new ObjectId(params.id) });
+    return user;
+  },
+
+  /**
+   * @param {string} id
+   * @param {object} params
+   * @returns
+   */
+  updateProfile: async function (id, params) {
+    const updateUser = await db.collection("users").findOneAndUpdate(
+      {
+        _id: new ObjectId(id),
+      },
+      {
+        $set: {
+          ...params,
+          updated_at: new Date(),
+        },
+      },
+      {
+        returnDocument: "after",
+        projection: {
+          _id: 1,
+          username: 1,
+          email: 1,
+          first_name: 1,
+          last_name: 1,
+          phone: 1,
+          gender: 1,
+          address: 1,
+          date_of_birth: 1,
+          updated_at: 1,
+        },
+      }
+    );
+
+    return updateUser;
   },
 };

@@ -23,6 +23,12 @@ const codeMap = Object.keys(response).reduce((map, key) => {
   return map;
 }, {});
 
+/**
+ *
+ * @param {*} input
+ * @param {*} mess
+ * @returns
+ */
 const get = (input, mess) => {
   const key = typeof input === "string" ? input : codeMap[input];
   const res = response[key];

@@ -29,6 +29,7 @@ const app = express();
  */
 app.use(express.json());
 app.use(corsMiddleware);
+
 app.use(responseMiddleware);
 app.use(loggerMiddleware);
 app.use(router);

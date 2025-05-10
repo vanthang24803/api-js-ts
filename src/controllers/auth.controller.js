@@ -5,7 +5,7 @@ const {
 } = require("@/validations/auth.validation");
 
 module.exports = {
-  login: async (req, res) => {
+  login: async (req, res, next) => {
     const validationResult = validationLoginSchema.safeParse(req.body);
     if (!validationResult.success) {
       return res.badRequest(validationResult.error.errors);
@@ -16,11 +16,11 @@ module.exports = {
       res.ok(result);
     } catch (error) {
       log.error(error);
-      res.internalServerError();
+      next(error);
     }
   },
 
-  register: async (req, res) => {
+  register: async (req, res, next) => {
     const validationResult = validationRegisterSchema.safeParse(req.body);
     if (!validationResult.success) {
       return res.badRequest(validationResult.error.errors);
@@ -31,7 +31,7 @@ module.exports = {
       res.ok(result);
     } catch (error) {
       log.error(error);
-      res.internalServerError();
+      next(error);
     }
   },
 };

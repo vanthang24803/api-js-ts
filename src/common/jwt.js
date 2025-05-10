@@ -1,17 +1,37 @@
 const jwt = require("jsonwebtoken");
 
 let jwtFuc = {};
-
-jwtFuc.generateToken = (user) => {
-  return jwt.sign({ id: user._id }, env.JWT_SECRET, {
-    expiresIn: "1h",
-  });
+/**
+ *
+ * @param {*} user
+ * @param {boolean} isRefreshToken
+ * @returns
+ */
+jwtFuc.generateToken = (user, isRefreshToken = false) => {
+  return jwt.sign(
+    { id: user._id },
+    isRefreshToken ? env.JWT_REFRESH : env.JWT_SECRET,
+    {
+      expiresIn: isRefreshToken ? "30d" : "7d",
+    }
+  );
 };
 
-jwtFuc.verifyToken = (token) => {
-  return jwt.verify(token, env.JWT_SECRET);
+/**
+ *
+ * @param {*} token
+ * @param {boolean} isRefreshToken
+ * @returns
+ */
+jwtFuc.verifyToken = (token, isRefreshToken = false) => {
+  return jwt.verify(token, isRefreshToken ? env.JWT_REFRESH : env.JWT_SECRET);
 };
 
+/**
+ *
+ * @param {*} token
+ * @returns
+ */
 jwtFuc.decodeToken = (token) => {
   return jwt.decode(token);
 };

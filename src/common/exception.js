@@ -7,6 +7,11 @@ class Exception extends Error {
   }
 }
 
+/**
+ *
+ * @param {*} code
+ * @param {*} message
+ */
 const newException = (code = 400, message) => {
   throw new Exception(message || getReasonPhrase(code), code);
 };

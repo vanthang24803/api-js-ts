@@ -1,4 +1,3 @@
-require("@/configs/logger.config");
-require("@/configs/env.config");
-
-module.exports = {};
+require("./logger.config");
+require("./env.config");
+require("./upload.config");
