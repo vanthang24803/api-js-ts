@@ -1,5 +1,4 @@
 const app = require("./bootstrap");
-
 /**
  * Starts the application server.
  *
@@ -9,15 +8,14 @@ const app = require("./bootstrap");
  */
 async function startServer() {
   try {
-    await require("@/configs/mongo.config").connection();
+    await require("@/configs/mongo.config").connect();
+    // await require("@/configs/redis.config").connect();
 
-    log.info(
-      `🚀 Application listening at http://localhost:${process.env.PORT}`
-    );
+    log.info(`🚀 Application listening at http://localhost:${env.PORT}`);
 
-    app.listen(process.env.PORT);
+    app.listen(env.PORT);
   } catch (error) {
-    console.error("❌ Error starting server:", error);
+    log.error("❌ Error starting server:", error);
     process.exit(1);
   }
 }

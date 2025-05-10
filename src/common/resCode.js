@@ -1,3 +1,5 @@
+const moment = require("moment");
+
 const response = {
   OK: { code: 0, message: "OK" },
   INTERNAL_SERVER_ERROR: { code: 500, message: "Internal Server Error" },
@@ -9,7 +11,10 @@ const response = {
   NOT_IMPLEMENTED: { code: 501, message: "Not Implemented" },
   SERVICE_UNAVAILABLE: { code: 503, message: "Service Unavailable" },
   GATEWAY_TIMEOUT: { code: 504, message: "Gateway Timeout" },
-  ROOT_PATH: { code: 0, message: `Hello world at ${new Date().toISOString()}` },
+  ROOT_PATH: {
+    code: 0,
+    message: `Hello world at ${moment().format("DD-MM-YYYY HH:mm:ss")}`,
+  },
   HEALTH_PATH: { code: 0, message: "Server is healthy" },
 };
 

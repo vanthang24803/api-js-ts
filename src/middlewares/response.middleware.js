@@ -27,7 +27,7 @@ module.exports = (req, res, next) => {
       body = {
         status: res.statusCode,
         success: true,
-        data: body || null,
+        result: body || null,
         metadata: metadata,
       };
     } else {

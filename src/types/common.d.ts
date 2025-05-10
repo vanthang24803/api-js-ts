@@ -11,7 +11,7 @@ interface JWT {
 }
 
 type ResCodeMap = typeof response & {
-  get(input: number | ResCodeKey, messageOverride?: string): ResponseEntry;
+  get(input: number | ResCodeKey, messageOverride?: any): ResponseEntry;
 };
 
 type ResCodeKey = keyof ResCodeMap;

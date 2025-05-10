@@ -3,6 +3,8 @@ import { Logger } from "pino";
 import { z } from "zod";
 import { ResCodeMap, Bcrypt, JWT } from "@/types/common";
 import { type StatusCodes } from "http-status-codes";
+import Redis from "ioredis";
+import { Client } from "minio";
 
 export {};
 
@@ -24,4 +26,13 @@ declare global {
   var bcrypt: Bcrypt;
   var jwt: JWT;
   var exception: (code: StatusCodes, message?: string) => void;
+  var redis: Redis & {
+    setValue: (key: string, value: string) => Promise<void>;
+    getValue: (key: string) => Promise<string | null>;
+    clear: () => Promise<void>;
+  };
+  var minio: Client & {
+    uploadFile: (file: File) => Promise<string>;
+    destroyFile: (fileName: string) => Promise<void>;
+  };
 }
