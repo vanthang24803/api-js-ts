@@ -1,0 +1,9 @@
+
+echo "Running pre-commit hooks..."
+bun lint && bun lint:fix && bun format && bun format:fix
+
+echo "Build for production..."
+rm -rf dist && bun run build
+
+echo "Build Success!"
+rm -rf dist

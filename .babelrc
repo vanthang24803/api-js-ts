@@ -1,0 +1,9 @@
+{
+  "presets": ["@babel/preset-env"],
+  "plugins": [
+    ["module-resolver", { "root": ["./src"], "alias": { "@": "./src" } }],
+    "transform-remove-console"
+  ],
+  "comments": false,
+  "compact": true
+}
