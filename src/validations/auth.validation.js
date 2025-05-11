@@ -16,9 +16,6 @@ const validationRegisterSchema = z.object({
   gender: z.string().max(10),
   address: z.string().max(255).optional(),
   dateOfBirth: z.string().optional(),
-  roles: z.array(z.string()).min(1),
-  active: z.boolean(),
-  timezone: z.string().max(50),
 });
 
 module.exports = {

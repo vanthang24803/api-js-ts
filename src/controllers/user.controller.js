@@ -14,6 +14,20 @@ module.exports = {
       next(error);
     }
   },
+
+  logout: async (req, res, next) => {
+    try {
+      const existingUser = req.user;
+
+      const result = await userModule.logout(existingUser);
+
+      res.ok(result);
+    } catch (error) {
+      log.error(error);
+      next(error);
+    }
+  },
+
   updateProfile: async (req, res, next) => {
     try {
       const existingUser = req.user;

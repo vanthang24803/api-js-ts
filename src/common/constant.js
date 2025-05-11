@@ -4,6 +4,7 @@ const constant = {
   ROLE: {
     ADMIN: "admin",
     USER: "user",
+    ROOT: "root",
   },
 
   STATUS: {

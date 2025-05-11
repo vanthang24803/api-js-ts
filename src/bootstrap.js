@@ -33,7 +33,7 @@ app.use(corsMiddleware);
 app.use(responseMiddleware);
 app.use(loggerMiddleware);
 app.use(router);
-app.use(notFoundMiddleware);
 app.use(handleErrorMiddleware);
+app.use(notFoundMiddleware);
 
 module.exports = app;

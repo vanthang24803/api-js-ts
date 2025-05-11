@@ -34,4 +34,23 @@ module.exports = {
       next(error);
     }
   },
+
+  refreshToken: async (req, res, next) => {
+    try {
+      const { refreshToken } = req.body;
+
+      const isRefreshTokenValid = _.isString(refreshToken);
+
+      if (!isRefreshTokenValid) {
+        return res.badRequest("Refresh token is required!");
+      }
+
+      const result = await userModule.refreshToken({ refreshToken });
+
+      res.ok(result);
+    } catch (error) {
+      log.error(error);
+      next(error);
+    }
+  },
 };

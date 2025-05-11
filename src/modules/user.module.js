@@ -1,5 +1,6 @@
 const { z } = require("zod");
 const { ObjectId } = require("mongodb");
+const moment = require("moment");
 
 module.exports = {
   validateBeforeSave: (params) => {
@@ -39,7 +40,7 @@ module.exports = {
     const newUser = {
       ...params,
       hashedPassword: await bcrypt.hashPassword(params.password),
-      roles: ["root"],
+      roles: [constant.ROLE.USER],
       timezone: "Asia/Ho_Chi_Minh",
       version: 1,
       active: true,
@@ -62,10 +63,10 @@ module.exports = {
     log.info("User created successfully!");
     return { message: "Created user successfully!" };
   },
-
   login: async function (params) {
-    const cachedToken = await redis.get(constant.KEY.LOGIN_TOKEN);
-
+    const cachedToken = await redis.get(
+      `${constant.KEY.LOGIN_TOKEN}_${params.username || params.email}`
+    );
     if (cachedToken) {
       log.info("Token from Redis cache.");
       return JSON.parse(cachedToken);
@@ -84,141 +85,165 @@ module.exports = {
 
     if (!isPasswordValid) return exception(401);
 
-    if (user.tokens?.access_token && user.tokens?.refresh_token) {
-      const isAccessTokenValid = jwt.verifyToken(user.tokens.access_token);
-
-      if (isAccessTokenValid) {
-        await redis.set(
-          constant.KEY.LOGIN_TOKEN,
-          JSON.stringify(user.tokens),
-          "EX",
-          constant.JWT.JWT_EXPIRE - 5 * 60
-        );
-
-        log.info("Token from MongoDB cache.");
-        return user.tokens;
-      }
-    }
-
     const token = {
       accessToken: jwt.generateToken(user),
       refreshToken: jwt.generateToken(user, true),
     };
 
-    await db.collection("users").updateOne(
-      { _id: user._id },
-      {
-        $set: {
-          tokens: token,
-          updatedAt: new Date(),
-        },
+    const currentToken = await db.collection("tokens").findOne({
+      userId: user._id,
+      key: "refresh_token",
+    });
+
+    const newExpireAt = moment()
+      .add(constant.JWT.JWT_REFRESH_EXPIRE, "seconds")
+      .toDate();
+
+    if (currentToken) {
+      const isExpired = moment(currentToken.expiredAt).isBefore(moment());
+
+      if (!isExpired) {
+        log.info("Token from MongoDB cache. Still valid.");
+
+        const tokenToCache = {
+          accessToken: token.accessToken,
+          refreshToken: currentToken.value,
+        };
+
+        await redis.set(
+          `${constant.KEY.LOGIN_TOKEN}_${user.username || user.email}`,
+          JSON.stringify(tokenToCache),
+          "EX",
+          constant.JWT.JWT_EXPIRE - 5 * 60
+        );
+
+        return tokenToCache;
       }
-    );
+
+      await db.collection("tokens").updateOne(
+        {
+          userId: user._id,
+          key: "refresh_token",
+        },
+        {
+          $set: {
+            value: token.refreshToken,
+            expiredAt: newExpireAt,
+          },
+        }
+      );
+
+      log.info("Existing refresh token updated.");
+    } else {
+      await db.collection("tokens").insertOne({
+        userId: user._id,
+        key: "refresh_token",
+        value: token.refreshToken,
+        expiredAt: newExpireAt,
+      });
+
+      log.info("New token inserted.");
+    }
 
     await redis.set(
-      constant.KEY.LOGIN_TOKEN,
+      `${constant.KEY.LOGIN_TOKEN}_${user.username || user.email}`,
       JSON.stringify(token),
       "EX",
       constant.JWT.JWT_EXPIRE - 5 * 60
     );
 
-    log.info("New token generated and saved.");
+    log.info("Token cached in Redis.");
     return token;
   },
 
   logout: async function (params) {
-    await redis.del(constant.KEY.LOGIN_TOKEN);
-    await db.collection("users").updateOne(
-      { _id: new ObjectId(params.id) },
-      {
-        $set: {
-          tokens: null,
-          updatedAt: new Date(),
-        },
-      }
+    await redis.del(
+      `${constant.KEY.LOGIN_TOKEN}_${params.username || params.email}`
     );
+
+    await db.collection("tokens").findOneAndDelete({
+      userId: params._id,
+      key: "refresh_token",
+    });
     return { message: "Logged out successfully!" };
   },
 
+  /**
+   * @param {object} params
+   * @param {string} params.refreshToken
+   * @returns {Promise<{accessToken: string, refreshToken: string}>}
+   */
+
   refreshToken: async function (params) {
     const decoded = jwt.verifyToken(params.refreshToken, true);
-    if (!decoded) return exception(401);
+    if (!decoded) return exception(401, "Token invalid!");
 
-    const user = await db.collection("users").findOne({
-      $or: [{ username: decoded.username }, { email: decoded.email }],
+    const existingUser = await db.collection("users").findOne({
+      _id: new ObjectId(decoded.id),
     });
 
-    if (!user || !user.tokens?.refreshToken) return exception(401);
+    if (_.isNull(existingUser)) {
+      return exception(401, "User not found!");
+    }
 
-    const storedRefreshToken = user.tokens.refreshToken;
-    const isStoredRefreshTokenValid = jwt.verifyToken(storedRefreshToken, true);
+    const existingRefreshToken = await db.collection("tokens").findOne({
+      userId: new ObjectId(decoded.id),
+    });
 
-    if (
-      params.refreshToken === storedRefreshToken &&
-      isStoredRefreshTokenValid
-    ) {
-      const token = {
-        accessToken: jwt.generateToken(user),
-        refreshToken: params.refreshToken,
+    if (_.isNull(existingRefreshToken))
+      return exception(401, "Token not found!");
+
+    if (existingRefreshToken.value !== params.refreshToken)
+      return exception(401, "Token not match!");
+
+    const isExpired = moment(existingRefreshToken.expiredAt).isBefore(moment());
+
+    if (isExpired) {
+      const newToken = {
+        accessToken: jwt.generateToken(existingUser),
+        refreshToken: jwt.generateToken(existingUser, true),
       };
 
-      await db.collection("users").updateOne(
-        { _id: user._id },
+      await db.collection("tokens").updateOne(
+        {
+          userId: new ObjectId(decoded.id),
+          key: "refresh_token",
+        },
         {
           $set: {
-            tokens: token,
-            updatedAt: new Date(),
+            value: newToken.refreshToken,
+            expiredAt: moment()
+              .add(constant.JWT.JWT_REFRESH_EXPIRE, "seconds")
+              .toDate(),
           },
         }
       );
 
       await redis.set(
-        constant.KEY.LOGIN_TOKEN,
-        JSON.stringify(token),
+        `${constant.KEY.LOGIN_TOKEN}_${existingUser.username || existingUser.email}`,
+        JSON.stringify(newToken),
         "EX",
         constant.JWT.JWT_EXPIRE - 5 * 60
       );
 
-      log.info("Reused valid refresh token.");
-      return token;
+      log.info("Generated new token from refresh.");
+      return newToken;
     }
 
-    const newToken = {
-      accessToken: jwt.generateToken(user),
-      refreshToken: jwt.generateToken(user, true),
+    const token = {
+      accessToken: jwt.generateToken(existingUser),
+      refreshToken: existingRefreshToken.value,
     };
 
-    await db.collection("users").updateOne(
-      { _id: user._id },
-      {
-        $set: {
-          tokens: newToken,
-          updatedAt: new Date(),
-        },
-      }
-    );
-
     await redis.set(
-      constant.KEY.LOGIN_TOKEN,
-      JSON.stringify(newToken),
+      `${constant.KEY.LOGIN_TOKEN}_${existingUser.username || existingUser.email}`,
+      JSON.stringify(token),
       "EX",
       constant.JWT.JWT_EXPIRE - 5 * 60
     );
 
     log.info("Generated new token from refresh.");
-    return newToken;
-  },
-
-  /**
-   * @param {string} id
-   * @returns
-   */
-
-  findUserById: async function (params) {
-    const user = await db
-      .collection("users")
-      .findOne({ _id: new ObjectId(params.id) });
-    return user;
+    return token;
   },
 
   /**
