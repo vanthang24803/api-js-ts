@@ -5,5 +5,8 @@ bun lint && bun lint:fix && bun format && bun format:fix
 echo "Build for production..."
 rm -rf dist && bun run build
 
+echo "Run test..."
+bun test
+
 echo "Build Success!"
 rm -rf dist
