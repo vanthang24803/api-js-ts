@@ -20,6 +20,10 @@ const constant = {
   KEY: {
     LOGIN_TOKEN: "login_token",
   },
+
+  EVENTS: {
+    PING: "ping",
+  },
 };
 
 global.constant = constant;

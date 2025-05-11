@@ -3,6 +3,7 @@ import { Logger } from "pino";
 import { ResCodeMap, Bcrypt, Constant, Exception, Http } from "@/types/common";
 import { Multer } from "multer";
 import { Mail, Env, JWTConfig, RedisConfig, MinioConfig } from "@/types/config";
+import EventEmitter from "eventemitter3";
 export {};
 
 /**
@@ -28,6 +29,7 @@ declare global {
   var jwt: JWTConfig;
   var http: Http;
   var upload: Multer;
+  var pubsub: EventEmitter;
   var exception: Exception;
   var redis: RedisConfig;
   var minio: MinioConfig;
