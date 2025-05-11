@@ -4,6 +4,7 @@
 require("@/configs");
 require("@/common");
 require("@/tasks");
+require("@/events");
 
 /**
  * @description Import express
