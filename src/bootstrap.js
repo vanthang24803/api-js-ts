@@ -3,6 +3,7 @@
  */
 require("@/configs");
 require("@/common");
+require("@/tasks");
 
 /**
  * @description Import express

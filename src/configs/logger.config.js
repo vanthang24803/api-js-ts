@@ -1,7 +1,7 @@
 const pino = require("pino");
 const fs = require("fs");
 const path = require("path");
-const moment = require("moment");
+const moment = require("moment-timezone");
 
 const env = process.env.NODE_ENV || "development";
 
@@ -12,7 +12,7 @@ if (env === "development") {
     target: "pino-pretty",
     options: {
       colorize: true,
-      translateTime: "mm-dd-yyyy HH:MM:ss",
+      translateTime: "SYS:standard",
       ignore: "pid,hostname",
     },
   };

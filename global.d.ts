@@ -1,6 +1,6 @@
 import { Db } from "mongodb";
 import { Logger } from "pino";
-import { ResCodeMap, Bcrypt, Constant, Exception } from "@/types/common";
+import { ResCodeMap, Bcrypt, Constant, Exception, Http } from "@/types/common";
 import { Multer } from "multer";
 import { Mail, Env, JWTConfig, RedisConfig, MinioConfig } from "@/types/config";
 export {};
@@ -26,6 +26,7 @@ declare global {
   var constant: Constant;
   var mail: Mail;
   var jwt: JWTConfig;
+  var http: Http;
   var upload: Multer;
   var exception: Exception;
   var redis: RedisConfig;

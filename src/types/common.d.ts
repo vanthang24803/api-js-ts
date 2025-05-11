@@ -26,6 +26,13 @@ type ResponseEntry = {
   message: string;
 };
 
+interface Http {
+  get(url: string, config?: any): Promise<any>;
+  post(url: string, data?: any, config?: any): Promise<any>;
+  put(url: string, data?: any, config?: any): Promise<any>;
+  delete(url: string, config?: any): Promise<any>;
+}
+
 type Exception = (code: StatusCodes, message?: string) => void;
 
-export { Bcrypt, JWT, ResponseEntry, ResCodeMap, Constant, Exception };
+export { Bcrypt, JWT, ResponseEntry, ResCodeMap, Constant, Exception, Http };

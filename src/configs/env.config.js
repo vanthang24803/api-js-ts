@@ -41,7 +41,7 @@ if (!_env.success) {
   process.exit(1);
 }
 
-log.info("✅  Load env file successfully!");
+log.info("✅ Load env file successfully!");
 
 const env = _env.data;
 global.env = env;
