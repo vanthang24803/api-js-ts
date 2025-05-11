@@ -23,8 +23,13 @@ router.get("/", (req, res) => {
   res.ok(resCode.ROOT_PATH);
 });
 
-router.get("/health", (req, res) => {
-  res.ok(resCode.HEALTH_PATH);
+router.get("/health", async (req, res) => {
+  try {
+    await redis.set("health", "ok");
+    res.ok(resCode.HEALTH_PATH);
+  } catch (error) {
+    res.internalServerError(error);
+  }
 });
 
 module.exports = router;

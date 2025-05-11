@@ -9,7 +9,7 @@ const app = require("./bootstrap");
 async function startServer() {
   try {
     await require("@/configs/mongo.config").connect();
-    // await require("@/configs/redis.config").connect();
+    await require("@/configs/redis.config").connect();
 
     log.info(`🚀 Application listening at http://localhost:${env.PORT}`);
 

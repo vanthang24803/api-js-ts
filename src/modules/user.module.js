@@ -7,16 +7,16 @@ module.exports = {
       username: z.string().min(1).max(255),
       email: z.string().email().max(255),
       phone: z.string().optional(),
-      first_name: z.string().max(100),
-      last_name: z.string().max(100),
+      firstName: z.string().max(100),
+      lastName: z.string().max(100),
       gender: z.string().max(10),
       address: z.string().max(255).optional(),
-      date_of_birth: z.string().optional(),
+      dateOfBirth: z.string().optional(),
       roles: z.array(z.string()).min(1),
       active: z.boolean(),
       timezone: z.string().max(50),
-      created_at: z.date().default(new Date()),
-      updated_at: z.date().default(new Date()),
+      createdAt: z.date().default(new Date()),
+      updatedAt: z.date().default(new Date()),
     });
 
     try {
@@ -38,14 +38,14 @@ module.exports = {
 
     const newUser = {
       ...params,
-      hashed_password: await bcrypt.hashPassword(params.password),
+      hashedPassword: await bcrypt.hashPassword(params.password),
       roles: ["root"],
       timezone: "Asia/Ho_Chi_Minh",
       version: 1,
       active: true,
       gender: "male",
-      created_at: new Date(),
-      updated_at: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
     delete newUser.password;
@@ -64,30 +64,149 @@ module.exports = {
   },
 
   login: async function (params) {
+    const cachedToken = await redis.get(constant.KEY.LOGIN_TOKEN);
+
+    if (cachedToken) {
+      log.info("Token from Redis cache.");
+      return JSON.parse(cachedToken);
+    }
+
     const user = await db.collection("users").findOne({
       $or: [{ username: params.username }, { email: params.email }],
     });
 
-    if (!user) {
-      return exception(401);
-    }
+    if (!user) return exception(401);
 
     const isPasswordValid = await bcrypt.verifyPassword(
       params.password,
-      user.hashed_password
+      user.hashedPassword
     );
 
-    if (!isPasswordValid) {
-      return exception(401);
+    if (!isPasswordValid) return exception(401);
+
+    if (user.tokens?.access_token && user.tokens?.refresh_token) {
+      const isAccessTokenValid = jwt.verifyToken(user.tokens.access_token);
+
+      if (isAccessTokenValid) {
+        await redis.set(
+          constant.KEY.LOGIN_TOKEN,
+          JSON.stringify(user.tokens),
+          "EX",
+          constant.JWT.JWT_EXPIRE - 5 * 60
+        );
+
+        log.info("Token from MongoDB cache.");
+        return user.tokens;
+      }
     }
 
     const token = {
-      access_token: jwt.generateToken(user),
-      refresh_token: jwt.generateToken(user, true),
+      accessToken: jwt.generateToken(user),
+      refreshToken: jwt.generateToken(user, true),
     };
 
-    log.info("User logged in successfully!");
+    await db.collection("users").updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          tokens: token,
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    await redis.set(
+      constant.KEY.LOGIN_TOKEN,
+      JSON.stringify(token),
+      "EX",
+      constant.JWT.JWT_EXPIRE - 5 * 60
+    );
+
+    log.info("New token generated and saved.");
     return token;
+  },
+
+  logout: async function (params) {
+    await redis.del(constant.KEY.LOGIN_TOKEN);
+    await db.collection("users").updateOne(
+      { _id: new ObjectId(params.id) },
+      {
+        $set: {
+          tokens: null,
+          updatedAt: new Date(),
+        },
+      }
+    );
+    return { message: "Logged out successfully!" };
+  },
+
+  refreshToken: async function (params) {
+    const decoded = jwt.verifyToken(params.refreshToken, true);
+    if (!decoded) return exception(401);
+
+    const user = await db.collection("users").findOne({
+      $or: [{ username: decoded.username }, { email: decoded.email }],
+    });
+
+    if (!user || !user.tokens?.refreshToken) return exception(401);
+
+    const storedRefreshToken = user.tokens.refreshToken;
+    const isStoredRefreshTokenValid = jwt.verifyToken(storedRefreshToken, true);
+
+    if (
+      params.refreshToken === storedRefreshToken &&
+      isStoredRefreshTokenValid
+    ) {
+      const token = {
+        accessToken: jwt.generateToken(user),
+        refreshToken: params.refreshToken,
+      };
+
+      await db.collection("users").updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            tokens: token,
+            updatedAt: new Date(),
+          },
+        }
+      );
+
+      await redis.set(
+        constant.KEY.LOGIN_TOKEN,
+        JSON.stringify(token),
+        "EX",
+        constant.JWT.JWT_EXPIRE - 5 * 60
+      );
+
+      log.info("Reused valid refresh token.");
+      return token;
+    }
+
+    const newToken = {
+      accessToken: jwt.generateToken(user),
+      refreshToken: jwt.generateToken(user, true),
+    };
+
+    await db.collection("users").updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          tokens: newToken,
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    await redis.set(
+      constant.KEY.LOGIN_TOKEN,
+      JSON.stringify(newToken),
+      "EX",
+      constant.JWT.JWT_EXPIRE - 5 * 60
+    );
+
+    log.info("Generated new token from refresh.");
+    return newToken;
   },
 
   /**
@@ -107,15 +226,15 @@ module.exports = {
    * @param {object} params
    * @returns
    */
-  updateProfile: async function (id, params) {
+  updateProfile: async function (params) {
     const updateUser = await db.collection("users").findOneAndUpdate(
       {
-        _id: new ObjectId(id),
+        _id: new ObjectId(params.id),
       },
       {
         $set: {
           ...params,
-          updated_at: new Date(),
+          updatedAt: new Date(),
         },
       },
       {
@@ -124,13 +243,13 @@ module.exports = {
           _id: 1,
           username: 1,
           email: 1,
-          first_name: 1,
-          last_name: 1,
+          firstName: 1,
+          lastName: 1,
           phone: 1,
           gender: 1,
           address: 1,
-          date_of_birth: 1,
-          updated_at: 1,
+          dateOfBirth: 1,
+          updatedAt: 1,
         },
       }
     );
